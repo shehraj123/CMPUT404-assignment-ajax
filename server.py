@@ -23,6 +23,9 @@
 
 import flask
 from flask import Flask, request
+from datetime import datetime
+from time import mktime
+from wsgiref.handlers import format_date_time
 import json
 app = Flask(__name__)
 app.debug = True
@@ -36,7 +39,8 @@ app.debug = True
 class World:
     def __init__(self):
         self.clear()
-        
+        # self.modified = datetime.now() 
+
     def update(self, entity, key, value):
         entry = self.space.get(entity,dict())
         entry[key] = value
@@ -53,11 +57,15 @@ class World:
     
     def world(self):
         return self.space
+    
+    def __repr__(self) -> str:
+        return str(self.space)
 
 # you can test your webservice from the commandline
 # curl -v   -H "Content-Type: application/json" -X PUT http://127.0.0.1:5000/entity/X -d '{"x":1,"y":1}' 
 
-myWorld = World()          
+myWorld = World()       
+modified = None   
 
 # I give this to you, this is how you get the raw body/data portion of a post in flask
 # this should come with flask but whatever, it's not my project.
@@ -80,20 +88,24 @@ def hello():
 def update(entity):
     '''update the entities via this interface'''
     json = flask_post_json()
+    # Change the modified date as well
     if request.method == "PUT":
         try:
             for key in json:
                 value = json[key]
                 myWorld.update(entity, key, value)
+                modified = datetime.now()
         except:
             return {"message":"Bad request"}, 400
     elif request.method == "POST":
         try:
-            myWorld.set(entity, json)
-        except:
+            myWorld.set(entity, json['entity'])
+            modified = datetime.now()
+        except Exception as e:
+            print(e)
             return {"message":"Bad request"}, 400
 
-    return {"message":"updated entities"}, 200
+    return flask.jsonify(json), 200
 
 @app.route("/world", methods=['POST','GET'])    
 def world():
@@ -105,15 +117,22 @@ def world():
 @app.route("/entity/<entity>")    
 def get_entity(entity):
     '''This is the GET version of the entity interface, return a representation of the entity'''
-    if myWorld.get(entity):
-        return flask.jsonify(myWorld.get(entity))
-    return {"message":"No Entity"}, 404
+    
+    
+    response =  flask.jsonify(myWorld.get(entity))
+    stamp = mktime(modified.timetuple())
+    response.headers['Last-Modified'] = \
+        format_date_time(stamp)
+    print(response.headers['Last-Modified'])
+    return response, 200
 
 @app.route("/clear", methods=['POST','GET'])
 def clear():
     '''Clear the world out!'''
+    if request.method == "GET":
+        return {"message": "Bad Request"}, 400
     myWorld.clear()
-    return None
+    return {"message": "Cleared world"}, 200
 
 if __name__ == "__main__":
     app.run()

@@ -1,286 +1,340 @@
-<!DOCTYPE HTML>
-<html> 
-  <head> 
-    <title>AJAX Assignment</title> 
-    <meta charset="utf-8" /> 
-    <meta content='width=device-width; height=device-height; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;' name='viewport' />
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AJAX Assignment</title>
+    <meta charset="utf-8" />
+    <meta
+      content="width=device-width; height=device-height; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;"
+      name="viewport"
+    />
     <meta name="viewport" content="width=device-width" />
-    <meta name="license" content="
-        Copyright 2013 Abram Hindle
-        
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-        
-            http://www.apache.org/licenses/LICENSE-2.0
-        
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.
-
-        Copyright 2023 Shehraj Singh
-
-        Parts of this file were modified.
-    "/>
+    <meta name="license" content=" Copyright 2013 Abram Hindle Licensed under
+    the Apache License, Version 2.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of the License
+    at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable
+    law or agreed to in writing, software distributed under the License is
+    distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied. See the License for the specific language
+    governing permissions and limitations under the License. Copyright 2023
+    Shehraj Singh Parts of this file were modified. "/>
     <script src="json2.js"></script>
-  </head> 
-  <body bgcolor="black" height="100%" width="100%"> 
-    <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
+  </head>
+  <body bgcolor="black" height="100%" width="100%">
+    <canvas
+      id="c"
+      width="100%"
+      height="100%"
+      style="-webkit-tap-highlight-color: transparent"
+    ></canvas>
     <script>
-var canvas = document.getElementById('c');
-var host = window.location.host;
-var context = canvas.getContext("2d");
-var W = canvas.width  = window.innerWidth-6;
-var H = canvas.height = window.innerHeight-50;
-
-
-function sendJSONXMLHTTPRequest(url, objects, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState==4) {
-            try {
-                if (xhr.status==200) {
-                    //XXX: parse some JSON from the request!
-                    //XXX: Pass the data to the callback!
-                    let text = xhr.responseText;
-                    json = JSON.parse(text);
-                    callback(json);
-                }
-            } 
-            catch(e) {
-                alert('Error: ' + e.name);
+      var canvas = document.getElementById("c");
+      var host = window.location.host;
+      var context = canvas.getContext("2d");
+      var W = (canvas.width = window.innerWidth - 6);
+      var H = (canvas.height = window.innerHeight - 50);
+      var lastModified = new Date().toUTCString();
+      function sendJSONXMLHTTPRequest(url, objects, callback) {
+        // var xhr = new XMLHttpRequest();
+        // xhr.onreadystatechange = function () {
+        //     if (xhr.readyState==4) {
+        //         try {
+        //             if (xhr.status==200) {
+        //                 //XXX: parse some JSON from the request!
+        //                 //XXX: Pass the data to the callback!
+        //                 let text = xhr.responseText;
+        //                 json = JSON.parse(text);
+        //                 callback(json);
+        //             }
+        //         }
+        //         catch(e) {
+        //             alert('Error: ' + e.name);
+        //         }
+        //     }
+        // };
+        // //XXX: POST to a URL
+        // //XXX: set the mimetype and the accept headers!
+        // // Remember to use application/json !
+        // xhr.setRequestHeader("Content-Type", "application/json");
+        // xhr.setRequestHeader("Accept", "application/json");
+        // xhr.open("POST", url, false);
+        // xhr.send();
+        var request = new Request(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: objects,
+        });
+        return fetch(request)
+          .then((response) => {
+            if (response.status == 200) {
+              return response.json();
+            } else {
+              alert("Something went wrong!" + response.status);
             }
+          })
+          .then((json) => {
+            return callback(json);
+          });
+      }
+
+      world = {};
+
+      //XXX: TODO Make this prettier!
+      function drawCircle(context, entity) {
+        with (context) {
+          beginPath();
+          lineWidth = 3;
+          var x = entity["x"];
+          var y = entity["y"];
+          //moveTo(x,y);
+          fillStyle = entity["colour"];
+          strokeStyle = fillStyle;
+          arc(
+            x,
+            y,
+            entity["radius"] ? entity["radius"] : 50,
+            0,
+            2.0 * Math.PI,
+            false
+          );
+          stroke();
         }
-    };
-    //XXX: POST to a URL
-    //XXX: set the mimetype and the accept headers!
-    // Remember to use application/json !
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.setRequestHeader("Accept", "application/json");
-    xhr.open("POST", url, false);
-    xhr.send();
-}
+      }
 
+      function prepEntity(entity) {
+        if (!entity["colour"]) {
+          entity["colour"] = "#FF0000";
+        }
+        if (!entity["radius"]) {
+          entity["radius"] = 50;
+        }
+        return entity;
+      }
 
-world = {};
+      function clearFrame() {
+        with (context) {
+          moveTo(0, 0);
+          fillStyle = "#000";
+          fillRect(0, 0, W, H);
+        }
+      }
 
-//XXX: TODO Make this prettier!
-function drawCircle(context,entity) {
-    with(context) {
-        beginPath();              
-        lineWidth = 3;
-        var x = entity["x"];
-        var y = entity["y"];
-        //moveTo(x,y);
-        fillStyle = entity["colour"];
-        strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
-        stroke();                                
-    }
-}
+      // This actually draws the frame
+      function renderFrame() {
+        clearFrame();
+        for (var key in world) {
+          var entity = world[key];
+          drawCircle(context, prepEntity(entity));
+        }
+      }
 
-function prepEntity(entity) {
-    if (!entity["colour"]) {
-        entity["colour"] = "#FF0000";
-    }
-    if (!entity["radius"]) {
-        entity["radius"] = 50;
-    }
-    return entity;
-}
+      var drawNext = true;
 
-function clearFrame() {
-    with(context) {
-	moveTo(0,0);
-	fillStyle = "#000";
-	fillRect(0,0,W,H);
-    }
+      // Signals that there's something to be drawn
+      function drawNextFrame() {
+        drawNext = true;
+      }
 
-}
+      // This optionally draws the frame, call this if you're not sure if you should update
+      // the canvas
+      function drawFrame() {
+        if (drawNext) {
+          renderFrame();
+          drawNext = false;
+        }
+      }
 
-// This actually draws the frame
-function renderFrame() {
-    clearFrame();
-    for (var key in world) {
-        var entity = world[key];
-        drawCircle(context,prepEntity(entity));
-    }
-}
+      // This is unpleasent, canvas clicks are not handled well
+      // So use this code, it works well on multitouch devices as well.
 
-var drawNext = true;
+      function getPosition(e) {
+        if (e.targetTouches && e.targetTouches.length > 0) {
+          var touch = e.targetTouches[0];
+          var x = touch.pageX - canvas.offsetLeft;
+          var y = touch.pageY - canvas.offsetTop;
+          return [x, y];
+        } else {
+          var rect = e.target.getBoundingClientRect();
+          var x = e.offsetX || e.pageX - rect.left - window.scrollX;
+          var y = e.offsetY || e.pageY - rect.top - window.scrollY;
+          var x = e.pageX - canvas.offsetLeft;
+          var y = e.pageY - canvas.offsetTop;
+          return [x, y];
+        }
+      }
 
-// Signals that there's something to be drawn
-function drawNextFrame() {
-    drawNext = true;
-}
-
-// This optionally draws the frame, call this if you're not sure if you should update
-// the canvas
-function drawFrame() {
-    if (drawNext) {
-        renderFrame();
-        drawNext = false;
-    }
-}
-
-// This is unpleasent, canvas clicks are not handled well
-// So use this code, it works well on multitouch devices as well.
-
-function getPosition(e) {
-	if ( e.targetTouches && e.targetTouches.length > 0) {
-		var touch = e.targetTouches[0];
-		var x = touch.pageX  - canvas.offsetLeft;
-		var y = touch.pageY  - canvas.offsetTop;
-		return [x,y];
-	} else {
-		var rect = e.target.getBoundingClientRect();
-		var x = e.offsetX || e.pageX - rect.left - window.scrollX;
-		var y = e.offsetY || e.pageY - rect.top  - window.scrollY;
-		var x = e.pageX  - canvas.offsetLeft;
-		var y = e.pageY  - canvas.offsetTop;
-		return [x,y];
-	}
-}
-
-
-function addEntity(entity, data) {
-    world[entity] = data;
-    drawNextFrame(); // (but should we?)
-    //XXX: Send a XHTML Request that updates the entity you just  modified!
-
-}
-
-var counter = 0;
-function addEntityWithoutName(data) {
-    //var name = "X"+Math.floor((Math.random()*100)+1);
-    var name = "X"+(counter++)%100;
-    addEntity(name,data);
-}
-
-// canvas + mouse/touch is complicated 
-// I give you this because well the mouse/touch stuff is a total
-// pain to get right. This has some out of context bug too.
-mouse = (function() {
-    // Now this isn't the most popular way of doing OO in 
-    // Javascript, but it relies on lexical scope and I like it
-    // This isn't 301 so I'm not totally bound to OO :)
-    var self;    
-    self = {
-        clicked: 0,
-        // these are listener lists append to them
-        mousemovers: [],
-        mousedraggers: [],
-        mousedowners: [],
-        mouseuppers: [],
-        callListeners: function(listeners,x,y,clicked,e) {
-            for (i in listeners) {
-                listeners[i](x,y,clicked,e);
+      function addEntity(entity, data) {
+        world[entity] = data;
+        // drawNextFrame(); // (but should we?)
+        //XXX: Send a XHTML Request that updates the entity you just  modified!
+        sendJSONXMLHTTPRequest(
+          "http://127.0.0.1:5000/entity/" + entity,
+          JSON.stringify({
+            entity: data,
+          }),
+          (json) => {
+            if (json.message != "success") {
+              console.log("Not drawing");
             }
-        },
-        wasClicked: function(e) {
+          }
+        );
+      }
+
+      var counter = 0;
+      function addEntityWithoutName(data) {
+        //var name = "X"+Math.floor((Math.random()*100)+1);
+        var name = "X" + (counter++ % 100);
+        addEntity(name, data);
+      }
+
+      // canvas + mouse/touch is complicated
+      // I give you this because well the mouse/touch stuff is a total
+      // pain to get right. This has some out of context bug too.
+      mouse = (function () {
+        // Now this isn't the most popular way of doing OO in
+        // Javascript, but it relies on lexical scope and I like it
+        // This isn't 301 so I'm not totally bound to OO :)
+        var self;
+        self = {
+          clicked: 0,
+          // these are listener lists append to them
+          mousemovers: [],
+          mousedraggers: [],
+          mousedowners: [],
+          mouseuppers: [],
+          callListeners: function (listeners, x, y, clicked, e) {
+            for (i in listeners) {
+              listeners[i](x, y, clicked, e);
+            }
+          },
+          wasClicked: function (e) {
             var pos = getPosition(e);
             var x = pos[0];
             var y = pos[1];
             if (x >= 0 && x <= W && y >= 0 && y <= H) {
-                return 1;
+              return 1;
             } else {
-                return 0;
+              return 0;
             }
-        },
-        mousedown: function(e) {
+          },
+          mousedown: function (e) {
             e.preventDefault();
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
-	        self.clicked = 1;
-                self.callListeners(self.mousedowners,x,y,self.clicked,e);
-                //addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+              var pos = getPosition(e);
+              var x = pos[0];
+              var y = pos[1];
+              self.clicked = 1;
+              self.callListeners(self.mousedowners, x, y, self.clicked, e);
+              //addEntityWithoutName({'x':x,'y':y,'colour':'red'});
             }
-        },
-        mouseup: function(e) {
+          },
+          mouseup: function (e) {
             e.preventDefault();
             //alert(getPosition(e));
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
-	        //self.poppin(x,y);
-	        self.clicked = 0;
-                self.selected = -1;
-                self.callListeners(self.mouseuppers,x,y,self.clicked,e);
-                //addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+              var pos = getPosition(e);
+              var x = pos[0];
+              var y = pos[1];
+              //self.poppin(x,y);
+              self.clicked = 0;
+              self.selected = -1;
+              self.callListeners(self.mouseuppers, x, y, self.clicked, e);
+              //addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
             }
-        },
-        touchstart: function(e) {
-            self.lasttouch = e;                                         
+          },
+          touchstart: function (e) {
+            self.lasttouch = e;
             return self.mousedown(e);
-        },
-	touchend: function(e) {
-            var touch = (self.lasttouch)?self.lasttouch:e;
+          },
+          touchend: function (e) {
+            var touch = self.lasttouch ? self.lasttouch : e;
             return self.mouseup(touch);
-	},
-	mousemove: function(e) {
+          },
+          mousemove: function (e) {
             e.preventDefault();
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
-	        if (self.clicked != 0) {
-	            //self.squeakin(x,y);
-                    self.callListeners(self.mousedraggers,x,y,self.clicked,e);
-	        }
-                self.callListeners(self.mousemovers,x,y,self.clicked,e);
-            }            
-	},
-	touchmove: function(e) {
-            self.lasttouch = e;                                         
+              var pos = getPosition(e);
+              var x = pos[0];
+              var y = pos[1];
+              if (self.clicked != 0) {
+                //self.squeakin(x,y);
+                self.callListeners(self.mousedraggers, x, y, self.clicked, e);
+              }
+              self.callListeners(self.mousemovers, x, y, self.clicked, e);
+            }
+          },
+          touchmove: function (e) {
+            self.lasttouch = e;
             return self.mousemove(e);
-	},
-	// Install the mouse listeners
-	mouseinstall: function() {
-            canvas.addEventListener("mousedown",  self.mousedown, false);
-            canvas.addEventListener("mousemove",  self.mousemove, false);
-            canvas.addEventListener("mouseup",    self.mouseup, false);
-            canvas.addEventListener("mouseout",   self.mouseout, false);
+          },
+          // Install the mouse listeners
+          mouseinstall: function () {
+            canvas.addEventListener("mousedown", self.mousedown, false);
+            canvas.addEventListener("mousemove", self.mousemove, false);
+            canvas.addEventListener("mouseup", self.mouseup, false);
+            canvas.addEventListener("mouseout", self.mouseout, false);
             canvas.addEventListener("touchstart", self.touchstart, false);
-            canvas.addEventListener("touchmove",  self.touchmove, false);
-            canvas.addEventListener("touchend",   self.touchend, false);
-	}
-    };
-    // Force install!
-    self.mouseinstall();
-    return self;
-})();
+            canvas.addEventListener("touchmove", self.touchmove, false);
+            canvas.addEventListener("touchend", self.touchend, false);
+          },
+        };
+        // Force install!
+        self.mouseinstall();
+        return self;
+      })();
 
-// Add the application specific mouse listeners!
-//XXX: TODO Make these prettier!
-mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
-});
+      // Add the application specific mouse listeners!
+      //XXX: TODO Make these prettier!
+      mouse.mousedowners.push(function (x, y, clicked, e) {
+        addEntityWithoutName({ x: x, y: y, colour: "blue" });
+      });
 
-mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
-});
+      mouse.mouseuppers.push(function (x, y, clicked, e) {
+        addEntityWithoutName({ x: x, y: y, colour: "red" });
+      });
 
-mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
-});
+      mouse.mousedraggers.push(function (x, y, clicked, e) {
+        addEntityWithoutName({ x: x, y: y, colour: "green", radius: 10 });
+      });
 
+      function update() {
+        //XXX: TODO Get the world from the webservice using a XMLHTTPRequest
+        const request = new Request("http://127.0.0.1:5000/world", {
+          method: "GET",
+          headers: {
+            "If-Modified-Since": lastModified,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        });
 
-function update() {
-    //XXX: TODO Get the world from the webservice using a XMLHTTPRequest
-    drawFrame();
-}
+        fetch(request)
+          .then((response) => {
+            if (response.status == 200) {
+              return response.json();
+            } else if (response.status == 304) {
+              // If world has not been changed since last fetch
+              return null;
+            }
+          })
+          .then((json) => {
+            if (json) {
+              let keys = Object.keys(json);
+              keys.map((x) => {
+                world[x] = json[x];
+              });
+              console.log(world);
+              drawNextFrame();
+            }
+          });
 
-// 30 frames per second
-setInterval( update, 1000/30.0);
+        drawFrame();
+      }
 
-
-
+      // 30 frames per second
+      setInterval(update, 1000 / 30.0);
     </script>
-</body>
+  </body>
 </html>
