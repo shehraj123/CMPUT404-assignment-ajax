@@ -19,6 +19,10 @@
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.
+
+        Copyright 2023 Shehraj Singh
+
+        Parts of this file were modified.
     "/>
     <script src="json2.js"></script>
   </head> 
@@ -40,6 +44,9 @@ function sendJSONXMLHTTPRequest(url, objects, callback) {
                 if (xhr.status==200) {
                     //XXX: parse some JSON from the request!
                     //XXX: Pass the data to the callback!
+                    let text = xhr.responseText;
+                    json = JSON.parse(text);
+                    callback(json);
                 }
             } 
             catch(e) {
@@ -50,6 +57,10 @@ function sendJSONXMLHTTPRequest(url, objects, callback) {
     //XXX: POST to a URL
     //XXX: set the mimetype and the accept headers!
     // Remember to use application/json !
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.open("POST", url, false);
+    xhr.send();
 }
 
 
