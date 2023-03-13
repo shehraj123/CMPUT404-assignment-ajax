@@ -65,7 +65,7 @@ class World:
 # curl -v   -H "Content-Type: application/json" -X PUT http://127.0.0.1:5000/entity/X -d '{"x":1,"y":1}' 
 
 myWorld = World()       
-modified = None   
+modified = datetime.utcnow() 
 
 # I give this to you, this is how you get the raw body/data portion of a post in flask
 # this should come with flask but whatever, it's not my project.
@@ -88,19 +88,21 @@ def hello():
 def update(entity):
     '''update the entities via this interface'''
     json = flask_post_json()
+    global modified
+
     # Change the modified date as well
     if request.method == "PUT":
         try:
             for key in json:
                 value = json[key]
                 myWorld.update(entity, key, value)
-                modified = datetime.now()
+                modified = datetime.utcnow()
         except:
             return {"message":"Bad request"}, 400
     elif request.method == "POST":
         try:
             myWorld.set(entity, json['entity'])
-            modified = datetime.now()
+            modified = datetime.utcnow()
         except Exception as e:
             print(e)
             return {"message":"Bad request"}, 400
@@ -110,7 +112,10 @@ def update(entity):
 @app.route("/world", methods=['POST','GET'])    
 def world():
     '''you should probably return the world here'''
-    return flask.jsonify(myWorld.world()), 200
+    header = {
+        "Last-Modified": modified.strftime("%a, %d %b %Y %H:%M:%S %Z")
+    }
+    return flask.jsonify(myWorld.world()), 200, header
     
 
 
@@ -118,21 +123,18 @@ def world():
 def get_entity(entity):
     '''This is the GET version of the entity interface, return a representation of the entity'''
     
-    
     response =  flask.jsonify(myWorld.get(entity))
-    stamp = mktime(modified.timetuple())
-    response.headers['Last-Modified'] = \
-        format_date_time(stamp)
-    print(response.headers['Last-Modified'])
     return response, 200
 
 @app.route("/clear", methods=['POST','GET'])
 def clear():
     '''Clear the world out!'''
-    if request.method == "GET":
-        return {"message": "Bad Request"}, 400
+    # if request.method == "GET":
+    #     return {"message": "Bad Request"}, 400
     myWorld.clear()
-    return {"message": "Cleared world"}, 200
+    global modified
+    modified = datetime.utcnow()
+    return {}, 200
 
 if __name__ == "__main__":
     app.run()
